@@ -1,0 +1,260 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="./output.css" rel="stylesheet">
+   <title>Weather Now</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+      <body class="bg-[#02012B] min-h-screen text-white font-sans">
+        <div class="container mx-auto px-4 py-6 max-w-7xl">
+             <header class="flex justify-between items-center mb-12">
+            <div class="flex items-center gap-3">
+                <div class="">
+                  <img src="logo.svg">
+                </div>     
+            </div>
+
+             <div class="relative">
+                <button id="unitsBtn" class="flex items-center gap-2 px-4 py-2 bg-white/10 border border-white/20 rounded-lg hover:bg-white/15 transition">
+                    <span><img src="icon-units.svg"></span>
+                    <span class="text-sm font-medium">Units</span>
+                    <span class="text-xs">▾</span>
+                </button>
+                
+            
+                <div id="dropdown" class="hidden absolute right-0 mt-2 w-64 bg-slate-800 border border-white/20 rounded-xl p-4 z-50 shadow-xl">
+                
+                    <button class="w-full text-left px-3 py-2 rounded-lg hover:bg-white/10 transition mb-3 text-sm font-medium">
+                        Switch to Imperial
+                    </button>
+                    
+                
+                    <div class="mb-4">
+                        <div class="text-xs text-gray-400 mb-2">Temperature</div>
+                        <div id="tempCelsius" class="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer transition">
+                            <span class="text-sm">Celsius (°C)</span>
+                            <span class="text-blue-500">✓</span>
+                        </div>
+                        <div id="tempFahrenheit" class="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer transition">
+                            <span class="text-sm">Fahrenheit (°F)</span>
+                            <span class="opacity-0">✓</span>
+                        </div>
+                    </div>
+                    
+            
+                    <div class="mb-4">
+                        <div class="text-xs text-gray-400 mb-2">Wind Speed</div>
+                        <div id="windKmh" class="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer transition">
+                            <span class="text-sm">km/h</span>
+                            <span class="text-blue-500">✓</span>
+                        </div>
+                        <div id="windMph" class="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer transition">
+                            <span class="text-sm">mph</span>
+                            <span class="opacity-0">✓</span>
+                        </div>
+                    </div>
+                    
+            
+                    <div class="mb-4">
+                        <div class="text-xs text-gray-400 mb-2">Precipitation</div>
+                        <div id="precipMm" class="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer transition">
+                            <span class="text-sm">Millimeters (mm)</span>
+                            <span class="text-blue-500">✓</span>
+                        </div>
+                        <div id="precipIn" class="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer transition">
+                            <span class="text-sm">Inches (in)</span>
+                            <span class="opacity-0">✓</span>
+                        </div>
+                    </div>
+                    
+             </header>
+
+
+              <div class="text-center mb-12">
+            <h1 class="text-5xl md:text-6xl font-bold mb-8">How's the sky looking today?</h1>
+            </div>
+
+            <div class="input flex flex-col md:flex-row lg:flex-row justify-center gap-4">
+                <input
+                type="text"
+                id="cityInput"
+                placeholder="🔍 Search for a place...."
+                class="w-auto lg:w-[700px] pl-14 pr-5 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                <button class="px-8 py-4 bg-blue-600 hover:bg-blue-700 rounded-xl font-semibold transition">
+                    Search
+                </button>
+            </div>
+
+
+         <div class="grid gap-3 my-4">
+ 
+            <div class="weather-card">
+              <div class="bg-[url(bg-today-large.svg)] w-full h-[300px] bg-no-repeat bg-cover rounded-2xl ">
+                <div class="text-center pt-5">
+                    <h2 class="text-4xl font-bold">Berlin, Germany</h2>
+                    <p class="pt-3 font-medium">Tuesday, Aug 5, 2025</p>
+                </div>
+                <div class="flex justify-between items-center px-8">
+                    <img src="icon-sunny.webp" alt="Sunny weather icon"
+                    class="w-32 h-32 ">
+                    <h1 class="font-bold text-7xl">
+                        20°C
+                    </h1>
+                </div>
+              </div>
+
+
+
+              <div class="weather-details grid grid-cols-2 gap-4 mt-4 md:grid-cols-4 lg:grid-cols-4">
+                <div class="bg-[#25253F] rounded-lg p-4">
+                    <h2>Feels like</h2>
+                    <h1>18°C</h1>
+                </div>
+                <div class="bg-[#25253F] rounded-lg p-4">
+                    <h2>Humidity</h2>
+                    <h1 class="font-bold">46%</h1>
+                </div>
+                <div class="bg-[#25253F] rounded-lg p-4">
+                    <h2>Wind</h2>
+                    <h1>14 km/h</h1>
+                </div>
+                <div class="bg-[#25253F] rounded-lg p-4">
+                    <h2>Precipitation</h2>
+                    <h1>0 mm</h1>
+                </div>
+
+              </div>
+
+              <div class="forecast mt-5 font-bold text-2xl">
+                <h1>Daily forecast</h1>
+                <div class="forecast-details grid grid-cols-3 gap-4 mt-4 md:grid-cols-4 lg:grid-cols-8">
+
+                     <div class="bg-[#25253F] rounded-lg p-4 text-center">
+                        <h2 class="font-semibold">Tue</h2>
+                        <img src="icon-rain.webp">
+                        <div class="font-light flex justify-between">
+                            <span>18°C</span>
+                            <span>14°C</span>
+                        </div>
+                        </div>
+
+                         <div class="bg-[#25253F] rounded-lg p-4 text-center">
+                        <h2 class="font-semibold">Wed</h2>
+                        <img src="icon-drizzle.webp">
+                        <div class="font-light flex justify-between">
+                            <span>27°C</span>
+                            <span>15°C</span>
+                        </div>
+                               </div>
+
+                         <div class="bg-[#25253F] rounded-lg p-4 text-center">
+                        <h2 class="font-semibold">Thu</h2>
+                        <img src="icon-sunny.webp">
+                        <div class="font-light flex justify-between">
+                            <span>24°C</span>
+                            <span>14°C</span>
+                        </div>
+                               </div>
+
+                         <div class="bg-[#25253F] rounded-lg p-4 text-center">
+                        <h2 class="font-semibold">Fri</h2>
+                        <img src="icon-partly-cloudy.webp">
+                        <div class="font-light flex justify-between">
+                            <span>25°C</span>
+                            <span>13°C</span>
+                        </div>
+                               </div>
+
+                         <div class="bg-[#25253F] rounded-lg p-4 text-center">
+                        <h2 class="font-semibold">Sat</h2>
+                        <img src="icon-storm.webp">
+                        <div class="font-light flex justify-between">
+                            <span>21°C</span>
+                            <span>15°C</span>
+                        </div>
+                               </div>
+
+                         <div class="bg-[#25253F] rounded-lg p-4 text-center">
+                        <h2 class="font-semibold">Sun</h2>
+                        <img src="icon-rain.webp">
+                        <div class="font-light flex justify-between">
+                            <span>25°C</span>
+                            <span>16°C</span>
+                        </div>
+                               </div>
+
+                         <div class="bg-[#25253F] rounded-lg p-4 text-center">
+                        <h2 class="font-semibold">Mon</h2>
+                        <img src="icon-fog.webp">
+                        <div class="font-light flex justify-between">
+                            <span>24°C</span>
+                            <span>15°C</span>
+                        </div>
+                </div>
+              </div>
+
+            </div>
+
+           <div class="hourly flex justify-between items-center mt-8 bg-[#25253F] rounded-lg p-4">
+
+            <div class="fore">
+                <h2>Hourly Forecast</h2>
+            </div>
+
+             <div class="relative">
+                <button id="hoursBtn" class="flex items-center gap-2 px-4 py-2 bg-white/10 border border-white/20 rounded-lg hover:bg-white/15 transition">
+                    <span class="text-xs">Tuesday ▾</span>
+                </button>
+                
+            
+                <div id="dropdown" class="hidden absolute right-0 mt-2 w-64 bg-slate-800 border border-white/20 rounded-xl p-4 z-50 shadow-xl">
+                    
+                
+                    <div class="mb-4">
+                        <div class="text-xs text-gray-400 mb-2">Monday</div>
+                    </div>
+                    
+            
+                    <div class="mb-4">
+                        <div class="text-xs text-gray-400 mb-2">Tuesday</div>
+                    </div>
+                    
+            
+                    <div class="mb-4">
+                        <div class="text-xs text-gray-400 mb-2">Wednesday</div>
+                    </div>
+
+                     <div class="mb-4">
+                        <div class="text-xs text-gray-400 mb-2">Thursday</div>
+                    </div>
+
+                     <div class="mb-4">
+                        <div class="text-xs text-gray-400 mb-2">Friday</div>
+                    </div>
+
+                     <div class="mb-4">
+                        <div class="text-xs text-gray-400 mb-2">Saturday</div>
+                    </div>
+
+                     <div class="mb-4">
+                        <div class="text-xs text-gray-400 mb-2">Sunday</div>
+                    </div>
+        
+
+
+
+         </div>
+</div>
+        
+
+
+
+
+
+
+
+         </div>
+      </body>

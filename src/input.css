@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        
+
+
+        .bg-weather {
+            background-image: url(bg-today-large.svg);
+        }
+
+        .bg-weather-small {
+            background-image: url(bg-today-small.svg);
+        }
