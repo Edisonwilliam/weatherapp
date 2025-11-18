@@ -1,138 +1,356 @@
+let currentUnit = 'celsius';
+let currentWindUnit = 'kmh';
+let currentPrecipUnit = 'mm';
+let weatherData = null;
 
+// DOM Elements
+const cityInput = document.getElementById('cityInput');
+const searchBtn = document.querySelector('.input button');
+const unitsBtn = document.getElementById('unitsBtn');
+const unitsDropdown = document.getElementById('unitsDropdown');
+const hoursBtn = document.getElementById('hoursBtn');
+const hoursDropdown = document.getElementById('hoursDropdown');
+
+const tempCelsius = document.getElementById('tempCelsius');
+const tempFahrenheit = document.getElementById('tempFahrenheit');
+const windKmh = document.getElementById('windKmh');
+const windMph = document.getElementById('windMph');
+const precipMm = document.getElementById('precipMm');
+const precipIn = document.getElementById('precipIn');
+
+// Geocoding API - Get city coordinates
+async function getCityCoordinates(cityName) {
+    try {
+        const response = await fetch(
+            `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=en&format=json`
+        );
+        const data = await response.json();
         
-        const unitsBtn = document.getElementById('unitsBtn');
-        const dropdown = document.getElementById('dropdown');
-        const searchInput = document.getElementById('searchInput');
-        const suggestions = document.getElementById('suggestions');
+        if (data.results && data.results.length > 0) {
+            return {
+                lat: data.results[0].latitude,
+                lon: data.results[0].longitude,
+                name: data.results[0].name,
+                country: data.results[0].country
+            };
+        } else {
+            throw new Error('City not found');
+        }
+    } catch (error) {
+        console.error('Geocoding error:', error);
+        alert('City not found. Please try another city.');
+        return null;
+    }
+}
 
-        unitsBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            dropdown.classList.toggle('hidden');
-        });
+// Weather API - Fetch weather data
+async function getWeatherData(lat, lon) {
+    try {
+        const response = await fetch(
+            `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m&hourly=temperature_2m,precipitation,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto`
+        );
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Weather API error:', error);
+        alert('Failed to fetch weather data. Please try again.');
+        return null;
+    }
+}
 
-        document.addEventListener('click', (e) => {
-            if (!dropdown.contains(e.target) && e.target !== unitsBtn) {
-                dropdown.classList.add('hidden');
-            }
-        });
+// Get weather icon based on WMO code
+function getWeatherIcon(code) {
+    const weatherIcons = {
+        0: { icon: 'icon-sunny.webp', desc: 'Clear sky' },
+        1: { icon: 'icon-sunny.webp', desc: 'Mainly clear' },
+        2: { icon: 'icon-partly-cloudy.webp', desc: 'Partly cloudy' },
+        3: { icon: 'icon-overcast.webp', desc: 'Overcast' },
+        45: { icon: 'icon-fog.webp', desc: 'Foggy' },
+        48: { icon: 'icon-fog.webp', desc: 'Foggy' },
+        51: { icon: 'icon-drizzle.webp', desc: 'Light drizzle' },
+        53: { icon: 'icon-drizzle.webp', desc: 'Moderate drizzle' },
+        55: { icon: 'icon-drizzle.webp', desc: 'Dense drizzle' },
+        61: { icon: 'icon-rain.webp', desc: 'Slight rain' },
+        63: { icon: 'icon-rain.webp', desc: 'Moderate rain' },
+        65: { icon: 'icon-rain.webp', desc: 'Heavy rain' },
+        71: { icon: 'icon-rain.webp', desc: 'Slight snow' },
+        73: { icon: 'icon-rain.webp', desc: 'Moderate snow' },
+        75: { icon: 'icon-rain.webp', desc: 'Heavy snow' },
+        95: { icon: 'icon-storm.webp', desc: 'Thunderstorm' },
+        96: { icon: 'icon-storm.webp', desc: 'Thunderstorm with hail' },
+        99: { icon: 'icon-storm.webp', desc: 'Thunderstorm with heavy hail' }
+    };
+    return weatherIcons[code] || { icon: 'icon-sunny.webp', desc: 'Clear' };
+}
 
+// Format date
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    const options = { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' };
+    return date.toLocaleDateString('en-US', options);
+}
+
+// Get day name
+function getDayName(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { weekday: 'short' });
+}
+
+// Unit conversions
+function convertTemp(temp, toUnit) {
+    if (toUnit === 'fahrenheit') {
+        return Math.round((temp * 9/5) + 32);
+    }
+    return Math.round(temp);
+}
+
+function convertWind(speed, toUnit) {
+    if (toUnit === 'mph') {
+        return Math.round(speed * 0.621371);
+    }
+    return Math.round(speed);
+}
+
+function convertPrecip(amount, toUnit) {
+    if (toUnit === 'in') {
+        return (amount * 0.0393701).toFixed(2);
+    }
+    return amount.toFixed(1);
+}
+
+// Update UI with weather data
+function updateUI(data, cityInfo) {
+    weatherData = data;
     
-        searchInput.addEventListener('focus', () => {
-            suggestions.classList.remove('hidden');
-        });
-
-        searchInput.addEventListener('blur', () => {
-            setTimeout(() => suggestions.classList.add('hidden'), 200);
-        });
-
-        
-        let tempUnit = 'celsius';
-        let windUnit = 'kmh';
-        let precipUnit = 'mm';
-
-        const baseTemps = {
-            main: 20,
-            feels: 18,
-            hourly: { '3pm': 20, '4pm': 20, '5pm': 20, '6pm': 19, '7pm': 18, '8pm': 18, '9pm': 17, '10pm': 17 },
-            daily: {
-                tue: [20, 14],
-                wed: [21, 15],
-                thu: [24, 14],
-                fri: [25, 13],
-                sat: [21, 15],
-                sun: [25, 16],
-                mon: [24, 15]
-            }
+    // Update location and date
+    document.querySelector('.weather-card h2').textContent = `${cityInfo.name}, ${cityInfo.country}`;
+    document.querySelector('.weather-card p').textContent = formatDate(data.current.time);
+    
+    // Update main temperature
+    const mainTemp = convertTemp(data.current.temperature_2m, currentUnit);
+    const tempSymbol = currentUnit === 'celsius' ? '°C' : '°F';
+    document.querySelector('.weather-card h1').textContent = `${mainTemp}${tempSymbol}`;
+    
+    // Update weather icon
+    const currentWeatherIcon = getWeatherIcon(data.current.weather_code);
+    document.querySelector('.weather-card img').src = currentWeatherIcon.icon;
+    document.querySelector('.weather-card img').alt = currentWeatherIcon.desc;
+    
+    // Update weather details
+    const feelsLike = convertTemp(data.current.apparent_temperature, currentUnit);
+    const windSpeed = convertWind(data.current.wind_speed_10m, currentWindUnit);
+    const windUnit = currentWindUnit === 'kmh' ? 'km/h' : 'mph';
+    const precip = convertPrecip(data.current.precipitation, currentPrecipUnit);
+    const precipUnit = currentPrecipUnit === 'mm' ? 'mm' : 'in';
+    
+    document.querySelector('.weather-details > div:nth-child(1) h1').textContent = `${feelsLike}${tempSymbol}`;
+    document.querySelector('.weather-details > div:nth-child(2) h1').textContent = `${data.current.relative_humidity_2m}%`;
+    document.querySelector('.weather-details > div:nth-child(3) h1').textContent = `${windSpeed} ${windUnit}`;
+    document.querySelector('.weather-details > div:nth-child(4) h1').textContent = `${precip} ${precipUnit}`;
+    
+    // Update daily forecast
+    const forecastCards = document.querySelectorAll('.forecast-details > div');
+    for (let i = 0; i < Math.min(7, forecastCards.length); i++) {
+        const dayData = {
+            date: data.daily.time[i],
+            maxTemp: data.daily.temperature_2m_max[i],
+            minTemp: data.daily.temperature_2m_min[i],
+            weatherCode: data.daily.weather_code[i]
         };
-
-        function celsiusToFahrenheit(c) {
-            return Math.round((c * 9/5) + 32);
-        }
-
-        function updateTemperatures() {
-            const symbol = '°';
+        
+        const card = forecastCards[i];
+        const dayName = getDayName(dayData.date);
+        const maxTemp = convertTemp(dayData.maxTemp, currentUnit);
+        const minTemp = convertTemp(dayData.minTemp, currentUnit);
+        const weatherIcon = getWeatherIcon(dayData.weatherCode);
+        
+        card.querySelector('h2').textContent = dayName;
+        card.querySelector('img').src = weatherIcon.icon;
+        card.querySelector('img').alt = weatherIcon.desc;
+        card.querySelector('.font-light span:nth-child(1)').textContent = `${maxTemp}${tempSymbol}`;
+        card.querySelector('.font-light span:nth-child(2)').textContent = `${minTemp}${tempSymbol}`;
+    }
+    
+    // Update hourly forecast
+    const now = new Date();
+    const currentHour = now.getHours();
+    const hourlyCards = document.querySelectorAll('.hourly-grid > div');
+    
+    for (let i = 0; i < Math.min(8, hourlyCards.length); i++) {
+        const hourIndex = currentHour + i;
+        if (hourIndex < data.hourly.time.length) {
+            const hourData = {
+                time: data.hourly.time[hourIndex],
+                temp: data.hourly.temperature_2m[hourIndex],
+                weatherCode: data.hourly.weather_code[hourIndex]
+            };
             
-            const mainTemp = tempUnit === 'celsius' ? baseTemps.main : celsiusToFahrenheit(baseTemps.main);
-            const feelsTemp = tempUnit === 'celsius' ? baseTemps.feels : celsiusToFahrenheit(baseTemps.feels);
+            const card = hourlyCards[i];
+            const hour = new Date(hourData.time).getHours();
+            const period = hour >= 12 ? 'PM' : 'AM';
+            const displayHour = hour > 12 ? hour - 12 : (hour === 0 ? 12 : hour);
+            const temp = convertTemp(hourData.temp, currentUnit);
+            const weatherIcon = getWeatherIcon(hourData.weatherCode);
             
-            document.getElementById('mainTemp').textContent = mainTemp + symbol;
-            document.getElementById('feelsLike').textContent = feelsTemp + symbol;
-            
-            // Update hourly
-            Object.keys(baseTemps.hourly).forEach(time => {
-                const temp = tempUnit === 'celsius' ? baseTemps.hourly[time] : celsiusToFahrenheit(baseTemps.hourly[time]);
-                const el = document.getElementById('temp' + time);
-                if (el) el.textContent = temp + symbol;
-            });
-
-            // Update daily
-            Object.keys(baseTemps.daily).forEach(day => {
-                const high = tempUnit === 'celsius' ? baseTemps.daily[day][0] : celsiusToFahrenheit(baseTemps.daily[day][0]);
-                const low = tempUnit === 'celsius' ? baseTemps.daily[day][1] : celsiusToFahrenheit(baseTemps.daily[day][1]);
-                
-                const highEl = document.getElementById(day + 'High');
-                const lowEl = document.getElementById(day + 'Low');
-                if (highEl) highEl.textContent = high + symbol;
-                if (lowEl) lowEl.textContent = low + symbol;
-            });
+            card.querySelector('p').textContent = `${displayHour} ${period}`;
+            card.querySelector('img').src = weatherIcon.icon;
+            card.querySelector('img').alt = weatherIcon.desc;
+            card.querySelector('div:last-child').textContent = `${temp}${tempSymbol}`;
         }
+    }
+}
 
-        function updateWind() {
-            const baseWindKmh = 14;
-            const value = windUnit === 'kmh' ? baseWindKmh : Math.round(baseWindKmh * 0.621371);
-            const unit = windUnit === 'kmh' ? 'km/h' : 'mph';
-            document.getElementById('windSpeed').textContent = value + ' ' + unit;
-        }
+// Search weather function
+async function searchWeather() {
+    const cityName = cityInput.value.trim();
+    if (!cityName) {
+        alert('Please enter a city name');
+        return;
+    }
+    
+    // Show loading state
+    searchBtn.textContent = 'Searching...';
+    searchBtn.disabled = true;
+    
+    // Get coordinates
+    const cityInfo = await getCityCoordinates(cityName);
+    if (!cityInfo) {
+        searchBtn.textContent = 'Search';
+        searchBtn.disabled = false;
+        return;
+    }
+    
+    // Get weather data
+    const weather = await getWeatherData(cityInfo.lat, cityInfo.lon);
+    if (!weather) {
+        searchBtn.textContent = 'Search';
+        searchBtn.disabled = false;
+        return;
+    }
+    
+    // Update UI
+    updateUI(weather, cityInfo);
+    
+    // Reset button
+    searchBtn.textContent = 'Search';
+    searchBtn.disabled = false;
+}
 
-        function updatePrecipitation() {
-            const basePrecipMm = 0;
-            const value = precipUnit === 'mm' ? basePrecipMm : (basePrecipMm * 0.0393701).toFixed(2);
-            const unit = precipUnit === 'mm' ? 'mm' : 'in';
-            document.getElementById('precipitation').textContent = value + ' ' + unit;
-        }
+// Event Listeners - Search
+searchBtn.addEventListener('click', searchWeather);
+cityInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        searchWeather();
+    }
+});
 
-        // Temperature options
-        document.getElementById('tempCelsius').addEventListener('click', () => {
-            tempUnit = 'celsius';
-            updateTemperatures();
-            document.getElementById('tempCelsius').querySelector('span:last-child').classList.remove('opacity-0');
-            document.getElementById('tempFahrenheit').querySelector('span:last-child').classList.add('opacity-0');
-        });
+// Event Listeners - Units Dropdown
+unitsBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    unitsDropdown.classList.toggle('hidden');
+    hoursDropdown.classList.add('hidden'); // Close other dropdown
+});
 
-        document.getElementById('tempFahrenheit').addEventListener('click', () => {
-            tempUnit = 'fahrenheit';
-            updateTemperatures();
-            document.getElementById('tempFahrenheit').querySelector('span:last-child').classList.remove('opacity-0');
-            document.getElementById('tempCelsius').querySelector('span:last-child').classList.add('opacity-0');
-        });
+// Event Listeners - Hours Dropdown
+hoursBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    hoursDropdown.classList.toggle('hidden');
+    unitsDropdown.classList.add('hidden'); // Close other dropdown
+});
 
-        // Wind speed options
-        document.getElementById('windKmh').addEventListener('click', () => {
-            windUnit = 'kmh';
-            updateWind();
-            document.getElementById('windKmh').querySelector('span:last-child').classList.remove('opacity-0');
-            document.getElementById('windMph').querySelector('span:last-child').classList.add('opacity-0');
-        });
+// Close dropdowns when clicking outside
+document.addEventListener('click', (e) => {
+    if (!unitsDropdown.contains(e.target) && e.target !== unitsBtn && !unitsBtn.contains(e.target)) {
+        unitsDropdown.classList.add('hidden');
+    }
+    if (!hoursDropdown.contains(e.target) && e.target !== hoursBtn && !hoursBtn.contains(e.target)) {
+        hoursDropdown.classList.add('hidden');
+    }
+});
 
-        document.getElementById('windMph').addEventListener('click', () => {
-            windUnit = 'mph';
-            updateWind();
-            document.getElementById('windMph').querySelector('span:last-child').classList.remove('opacity-0');
-            document.getElementById('windKmh').querySelector('span:last-child').classList.add('opacity-0');
-        });
+// Temperature unit conversion
+tempCelsius.addEventListener('click', () => {
+    currentUnit = 'celsius';
+    tempCelsius.querySelector('span:last-child').classList.remove('opacity-0');
+    tempFahrenheit.querySelector('span:last-child').classList.add('opacity-0');
+    if (weatherData) {
+        const cityInfo = {
+            name: document.querySelector('.weather-card h2').textContent.split(',')[0],
+            country: document.querySelector('.weather-card h2').textContent.split(',')[1]?.trim() || ''
+        };
+        updateUI(weatherData, cityInfo);
+    }
+});
 
-        // Precipitation options
-        document.getElementById('precipMm').addEventListener('click', () => {
-            precipUnit = 'mm';
-            updatePrecipitation();
-            document.getElementById('precipMm').querySelector('span:last-child').classList.remove('opacity-0');
-            document.getElementById('precipIn').querySelector('span:last-child').classList.add('opacity-0');
-        });
+tempFahrenheit.addEventListener('click', () => {
+    currentUnit = 'fahrenheit';
+    tempFahrenheit.querySelector('span:last-child').classList.remove('opacity-0');
+    tempCelsius.querySelector('span:last-child').classList.add('opacity-0');
+    if (weatherData) {
+        const cityInfo = {
+            name: document.querySelector('.weather-card h2').textContent.split(',')[0],
+            country: document.querySelector('.weather-card h2').textContent.split(',')[1]?.trim() || ''
+        };
+        updateUI(weatherData, cityInfo);
+    }
+});
 
-        document.getElementById('precipIn').addEventListener('click', () => {
-            precipUnit = 'in';
-            updatePrecipitation();
-            document.getElementById('precipIn').querySelector('span:last-child').classList.remove('opacity-0');
-            document.getElementById('precipMm').querySelector('span:last-child').classList.add('opacity-0');
-        });
+// Wind speed unit conversion
+windKmh.addEventListener('click', () => {
+    currentWindUnit = 'kmh';
+    windKmh.querySelector('span:last-child').classList.remove('opacity-0');
+    windMph.querySelector('span:last-child').classList.add('opacity-0');
+    if (weatherData) {
+        const cityInfo = {
+            name: document.querySelector('.weather-card h2').textContent.split(',')[0],
+            country: document.querySelector('.weather-card h2').textContent.split(',')[1]?.trim() || ''
+        };
+        updateUI(weatherData, cityInfo);
+    }
+});
 
+windMph.addEventListener('click', () => {
+    currentWindUnit = 'mph';
+    windMph.querySelector('span:last-child').classList.remove('opacity-0');
+    windKmh.querySelector('span:last-child').classList.add('opacity-0');
+    if (weatherData) {
+        const cityInfo = {
+            name: document.querySelector('.weather-card h2').textContent.split(',')[0],
+            country: document.querySelector('.weather-card h2').textContent.split(',')[1]?.trim() || ''
+        };
+        updateUI(weatherData, cityInfo);
+    }
+});
+
+// Precipitation unit conversion
+precipMm.addEventListener('click', () => {
+    currentPrecipUnit = 'mm';
+    precipMm.querySelector('span:last-child').classList.remove('opacity-0');
+    precipIn.querySelector('span:last-child').classList.add('opacity-0');
+    if (weatherData) {
+        const cityInfo = {
+            name: document.querySelector('.weather-card h2').textContent.split(',')[0],
+            country: document.querySelector('.weather-card h2').textContent.split(',')[1]?.trim() || ''
+        };
+        updateUI(weatherData, cityInfo);
+    }
+});
+
+precipIn.addEventListener('click', () => {
+    currentPrecipUnit = 'in';
+    precipIn.querySelector('span:last-child').classList.remove('opacity-0');
+    precipMm.querySelector('span:last-child').classList.add('opacity-0');
+    if (weatherData) {
+        const cityInfo = {
+            name: document.querySelector('.weather-card h2').textContent.split(',')[0],
+            country: document.querySelector('.weather-card h2').textContent.split(',')[1]?.trim() || ''
+        };
+        updateUI(weatherData, cityInfo);
+    }
+});
+
+// Load default city on page load (Berlin)
+window.addEventListener('DOMContentLoaded', async () => {
+    cityInput.value = 'Berlin';
+    await searchWeather();
+});
