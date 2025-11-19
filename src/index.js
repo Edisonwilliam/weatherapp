@@ -2,6 +2,8 @@ let currentUnit = 'celsius';
 let currentWindUnit = 'kmh';
 let currentPrecipUnit = 'mm';
 let weatherData = null;
+let searchTimeout = null;
+let selectedDayIndex = 0;
 
 // DOM Elements
 const cityInput = document.getElementById('cityInput');
@@ -10,6 +12,8 @@ const unitsBtn = document.getElementById('unitsBtn');
 const unitsDropdown = document.getElementById('unitsDropdown');
 const hoursBtn = document.getElementById('hoursBtn');
 const hoursDropdown = document.getElementById('hoursDropdown');
+const searchSuggestions = document.getElementById('searchSuggestions');
+const searchLoading = document.getElementById('searchLoading');
 
 const tempCelsius = document.getElementById('tempCelsius');
 const tempFahrenheit = document.getElementById('tempFahrenheit');
@@ -41,6 +45,76 @@ async function getCityCoordinates(cityName) {
         alert('City not found. Please try another city.');
         return null;
     }
+}
+
+// Get city suggestions for autocomplete
+async function getCitySuggestions(query) {
+    if (query.length < 2) return [];
+    
+    try {
+        const response = await fetch(
+            `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=5&language=en&format=json`
+        );
+        const data = await response.json();
+        
+        if (data.results && data.results.length > 0) {
+            return data.results.map(city => ({
+                name: city.name,
+                country: city.country,
+                lat: city.latitude,
+                lon: city.longitude
+            }));
+        }
+        return [];
+    } catch (error) {
+        console.error('Suggestion error:', error);
+        return [];
+    }
+}
+
+// Show search suggestions
+function showSuggestions(suggestions) {
+    if (suggestions.length === 0) {
+        searchSuggestions.classList.add('hidden');
+        return;
+    }
+    
+    searchSuggestions.innerHTML = suggestions.map(city => `
+        <div class="suggestion-item px-4 py-3 hover:bg-white/10 cursor-pointer transition border-b border-white/10 last:border-b-0" data-lat="${city.lat}" data-lon="${city.lon}" data-name="${city.name}" data-country="${city.country}">
+            <div class="font-medium">${city.name}</div>
+            <div class="text-sm text-gray-400">${city.country}</div>
+        </div>
+    `).join('');
+    
+    searchSuggestions.classList.remove('hidden');
+    searchLoading.classList.add('hidden');
+    
+    // Add click handlers to suggestions
+    document.querySelectorAll('.suggestion-item').forEach(item => {
+        item.addEventListener('click', async () => {
+            const cityInfo = {
+                name: item.dataset.name,
+                country: item.dataset.country,
+                lat: parseFloat(item.dataset.lat),
+                lon: parseFloat(item.dataset.lon)
+            };
+            
+            cityInput.value = `${cityInfo.name}, ${cityInfo.country}`;
+            searchSuggestions.classList.add('hidden');
+            
+            // Fetch and display weather
+            searchBtn.textContent = 'Searching...';
+            searchBtn.disabled = true;
+            
+            const weather = await getWeatherData(cityInfo.lat, cityInfo.lon);
+            if (weather) {
+                updateUI(weather, cityInfo);
+            }
+            
+            searchBtn.textContent = 'Search';
+            searchBtn.disabled = false;
+        });
+    });
 }
 
 // Weather API - Fetch weather data
@@ -171,13 +245,21 @@ function updateUI(data, cityInfo) {
         card.querySelector('.font-light span:nth-child(2)').textContent = `${minTemp}${tempSymbol}`;
     }
     
-    // Update hourly forecast
-    const now = new Date();
-    const currentHour = now.getHours();
+    // Update hourly forecast for selected day
+    updateHourlyForecast(data, selectedDayIndex);
+    
+    // Update day selector dropdown
+    updateDaySelector(data);
+}
+
+// Update hourly forecast
+function updateHourlyForecast(data, dayIndex = 0) {
     const hourlyCards = document.querySelectorAll('.hourly-grid > div');
+    const startHour = dayIndex * 24; // Each day has 24 hours
+    const tempSymbol = currentUnit === 'celsius' ? '°C' : '°F';
     
     for (let i = 0; i < Math.min(8, hourlyCards.length); i++) {
-        const hourIndex = currentHour + i;
+        const hourIndex = startHour + i;
         if (hourIndex < data.hourly.time.length) {
             const hourData = {
                 time: data.hourly.time[hourIndex],
@@ -195,9 +277,39 @@ function updateUI(data, cityInfo) {
             card.querySelector('p').textContent = `${displayHour} ${period}`;
             card.querySelector('img').src = weatherIcon.icon;
             card.querySelector('img').alt = weatherIcon.desc;
-            card.querySelector('div:last-child').textContent = `${temp}${tempSymbol}`;
+            card.querySelector('div:last-child').textContent = `${temp}°${currentUnit === 'celsius' ? 'C' : 'F'}`;
         }
     }
+}
+
+// Update day selector dropdown
+function updateDaySelector(data) {
+    const days = [];
+    for (let i = 0; i < Math.min(7, data.daily.time.length); i++) {
+        const dayName = getDayName(data.daily.time[i]);
+        const fullDayName = new Date(data.daily.time[i]).toLocaleDateString('en-US', { weekday: 'long' });
+        days.push({ short: dayName, full: fullDayName, index: i });
+    }
+    
+    hoursDropdown.innerHTML = days.map(day => `
+        <div class="day-option mb-1 px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer transition ${day.index === selectedDayIndex ? 'bg-white/10 text-blue-400' : ''}" data-index="${day.index}">
+            <div class="text-sm">${day.full}</div>
+        </div>
+    `).join('');
+    
+    // Update button text
+    const selectedDay = days.find(d => d.index === selectedDayIndex);
+    hoursBtn.querySelector('span').textContent = `${selectedDay.full} ▾`;
+    
+    // Add click handlers
+    document.querySelectorAll('.day-option').forEach(option => {
+        option.addEventListener('click', () => {
+            selectedDayIndex = parseInt(option.dataset.index);
+            updateHourlyForecast(weatherData, selectedDayIndex);
+            updateDaySelector(weatherData);
+            hoursDropdown.classList.add('hidden');
+        });
+    });
 }
 
 // Search weather function
@@ -241,7 +353,38 @@ searchBtn.addEventListener('click', searchWeather);
 cityInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
         searchWeather();
+        searchSuggestions.classList.add('hidden');
     }
+});
+
+// Search input suggestions
+cityInput.addEventListener('input', (e) => {
+    clearTimeout(searchTimeout);
+    const query = e.target.value.trim();
+    
+    if (query.length < 2) {
+        searchSuggestions.classList.add('hidden');
+        searchLoading.classList.add('hidden');
+        return;
+    }
+    
+    // Show loading indicator
+    searchLoading.classList.remove('hidden');
+    searchSuggestions.classList.add('hidden');
+    
+    searchTimeout = setTimeout(async () => {
+        const suggestions = await getCitySuggestions(query);
+        searchLoading.classList.add('hidden');
+        showSuggestions(suggestions);
+    }, 500);
+});
+
+// Close suggestions when clicking outside
+cityInput.addEventListener('blur', () => {
+    setTimeout(() => {
+        searchSuggestions.classList.add('hidden');
+        searchLoading.classList.add('hidden');
+    }, 200);
 });
 
 // Event Listeners - Units Dropdown
